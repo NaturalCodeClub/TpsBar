@@ -5,12 +5,10 @@ import com.destroystokyo.paper.event.server.ServerTickStartEvent;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.command.PluginCommand;
-import org.bukkit.entity.Boss;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -20,7 +18,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.UUID;
@@ -28,7 +25,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-@SuppressWarnings("unused")
 public final class TpsBar extends JavaPlugin {
 
     private double mspt = 0;
@@ -44,7 +40,7 @@ public final class TpsBar extends JavaPlugin {
         getLogger().info("Plugin enabling");
         if (canLoadJson(gson, file)) {
             try {
-                playerTpsBar = gson.fromJson(new FileReader(file), new TypeToken<HashMap<UUID, BossBar>>() {
+                playerTpsBar = gson.fromJson(new FileReader(file), new TypeToken<HashSet<UUID>>() {
                 }.getType());
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
@@ -104,10 +100,11 @@ public final class TpsBar extends JavaPlugin {
                     }
                 }
             }
+
             @EventHandler
-            public void on2(@NotNull PlayerQuitEvent event){
+            public void on2(@NotNull PlayerQuitEvent event) {
                 synchronized (playerTpsBar) {
-                    if (playerTpsBar.contains(event.getPlayer().getUniqueId()))bossBar.removePlayer(event.getPlayer());
+                    if (playerTpsBar.contains(event.getPlayer().getUniqueId())) bossBar.removePlayer(event.getPlayer());
                 }
             }
 
@@ -162,9 +159,9 @@ public final class TpsBar extends JavaPlugin {
     }
 
     public void saveJson(Gson g, File f, HashSet<UUID> set) {
-        FileWriter writer;
+        BufferedWriter writer;
         try {
-            writer = new FileWriter(f);
+            writer = new BufferedWriter(new FileWriter(f));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -175,12 +172,19 @@ public final class TpsBar extends JavaPlugin {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        try {
+            writer.flush();
+            writer.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
     public boolean canLoadJson(Gson g, File f) {
-        @NotNull HashMap<UUID, BossBar> map;
-        if(!f.exists()){
-            if(!f.getParentFile().exists()) f.getParentFile().mkdir();
+        @NotNull HashSet<UUID> set;
+        if (!f.exists()) {
+            if (!f.getParentFile().exists()) f.getParentFile().mkdir();
             try {
                 f.createNewFile();
             } catch (IOException e) {
@@ -188,13 +192,13 @@ public final class TpsBar extends JavaPlugin {
             }
         }
         try {
-            map = g.fromJson(new FileReader(f), new TypeToken<HashMap<UUID, BossBar>>() {
+            set = g.fromJson(new FileReader(f), new TypeToken<HashSet<UUID>>() {
             }.getType());
         } catch (FileNotFoundException e) {
             e.printStackTrace();
             return false;
         }
-        return map != null;
+        return set != null;
     }
 
 }
