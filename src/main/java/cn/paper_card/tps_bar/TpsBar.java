@@ -2,11 +2,15 @@ package cn.paper_card.tps_bar;
 
 import com.destroystokyo.paper.event.server.ServerTickEndEvent;
 import com.destroystokyo.paper.event.server.ServerTickStartEvent;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.entity.Boss;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -14,8 +18,11 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.*;
 import java.util.HashMap;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("unused")
@@ -23,11 +30,23 @@ public final class TpsBar extends JavaPlugin {
 
     private double mspt = 0;
 
-    private final @NotNull HashMap<UUID, BossBar> playerTpsBar = new HashMap<>();
+    private @NotNull HashMap<UUID, BossBar> playerTpsBar = new HashMap<>();
+    private Gson gson = new Gson();
+    private File file = new File(getDataFolder(), "config.json");
 
 
     @Override
     public void onEnable() {
+        getLogger().info("Plugin enabling");
+        if (canLoadJson(gson, file)) {
+            try {
+                playerTpsBar = gson.fromJson(new FileReader(file), new TypeToken<HashMap<UUID, BossBar>>() {
+                }.getType());
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+                onDisable();
+            }
+        }
 
         this.getServer().getAsyncScheduler().runAtFixedRate(this, task -> {
 
@@ -116,6 +135,52 @@ public final class TpsBar extends JavaPlugin {
 
             return true;
         });
+        new Thread() {
+            final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+
+            @Override
+            public void run() {
+                executor.schedule(() -> {
+                    saveJson(gson, file, playerTpsBar);
+                }, 5, TimeUnit.MINUTES);
+            }
+        };
+        getLogger().info("Plugin enabled");
+    }
+
+    @Override
+    public void onDisable() {
+        getLogger().info("Saving data to disk...");
+        saveJson(gson, file, playerTpsBar);
+        getLogger().info("Plugin disabled");
+    }
+
+    public void saveJson(Gson g, File f, HashMap<UUID, BossBar> map) {
+        FileWriter writer;
+        try {
+            writer = new FileWriter(f);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        String str;
+        str = g.toJson(map);
+        try {
+            writer.write(str);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public boolean canLoadJson(Gson g, File f) {
+        @NotNull HashMap<UUID, BossBar> map = new HashMap<>();
+        try {
+            map = g.fromJson(new FileReader(f), new TypeToken<HashMap<UUID, BossBar>>() {
+            }.getType());
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+            return false;
+        }
+        return !map.isEmpty();
     }
 
 }
