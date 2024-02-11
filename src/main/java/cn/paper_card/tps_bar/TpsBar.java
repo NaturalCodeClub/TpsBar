@@ -15,11 +15,14 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -30,9 +33,10 @@ public final class TpsBar extends JavaPlugin {
 
     private double mspt = 0;
 
-    private @NotNull HashMap<UUID, BossBar> playerTpsBar = new HashMap<>();
+    private @NotNull HashSet<UUID> playerTpsBar = new HashSet<>();
     private Gson gson = new Gson();
     private File file = new File(getDataFolder(), "config.json");
+    private BossBar bossBar = getServer().createBossBar(null, BarColor.GREEN, BarStyle.SEGMENTED_20);
 
 
     @Override
@@ -53,15 +57,13 @@ public final class TpsBar extends JavaPlugin {
             final double tps = this.mspt > 50 ? (1000 / this.mspt) : 20;
 
             synchronized (this.playerTpsBar) {
-                for (final UUID uuid : this.playerTpsBar.keySet()) {
-                    final BossBar bar = this.playerTpsBar.get(uuid);
-                    if (bar == null) continue;
+                for (final UUID uuid : this.playerTpsBar) {
 
                     final Player player = this.getServer().getPlayer(uuid);
                     if (player == null || !player.isOnline()) continue;
 
-                    bar.setTitle("MSPT: %.2f    TPS: %.2f   Ping: %dms".formatted(this.mspt, tps, player.getPing()));
-                    bar.setProgress(this.mspt / 50);
+                    bossBar.setTitle("MSPT: %.2f    TPS: %.2f   Ping: %dms".formatted(this.mspt, tps, player.getPing()));
+                    bossBar.setProgress(this.mspt / 50);
                 }
             }
 
@@ -97,10 +99,15 @@ public final class TpsBar extends JavaPlugin {
             @EventHandler
             public void on1(@NotNull PlayerJoinEvent event) {
                 synchronized (playerTpsBar) {
-                    final BossBar bossBar = playerTpsBar.get(event.getPlayer().getUniqueId());
-                    if (bossBar != null) {
+                    if (playerTpsBar.contains(event.getPlayer().getUniqueId())) {
                         bossBar.addPlayer(event.getPlayer());
                     }
+                }
+            }
+            @EventHandler
+            public void on2(@NotNull PlayerQuitEvent event){
+                synchronized (playerTpsBar) {
+                    if (playerTpsBar.contains(event.getPlayer().getUniqueId()))bossBar.removePlayer(event.getPlayer());
                 }
             }
 
@@ -117,16 +124,14 @@ public final class TpsBar extends JavaPlugin {
             final UUID id = player.getUniqueId();
 
             synchronized (this.playerTpsBar) {
-                BossBar bossBar = this.playerTpsBar.get(id);
-                if (bossBar == null) {
-                    bossBar = getServer().createBossBar(null, BarColor.GREEN, BarStyle.SEGMENTED_20);
+                if (!playerTpsBar.contains(((Player) commandSender).getUniqueId())) {
                     bossBar.addPlayer(player);
-                    this.playerTpsBar.put(id, bossBar);
+                    this.playerTpsBar.add(id);
 
                     commandSender.sendMessage(Component.text("已开启你的TpsBar"));
 
                 } else {
-                    bossBar.removeAll();
+                    bossBar.removePlayer(Objects.requireNonNull(((Player) commandSender).getPlayer()));
                     this.playerTpsBar.remove(id);
 
                     commandSender.sendMessage(Component.text("已关闭你的TpsBar"));
@@ -142,6 +147,7 @@ public final class TpsBar extends JavaPlugin {
             public void run() {
                 executor.schedule(() -> {
                     saveJson(gson, file, playerTpsBar);
+                    getLogger().info("Auto Save Data Succeed");
                 }, 5, TimeUnit.MINUTES);
             }
         };
@@ -155,7 +161,7 @@ public final class TpsBar extends JavaPlugin {
         getLogger().info("Plugin disabled");
     }
 
-    public void saveJson(Gson g, File f, HashMap<UUID, BossBar> map) {
+    public void saveJson(Gson g, File f, HashSet<UUID> set) {
         FileWriter writer;
         try {
             writer = new FileWriter(f);
@@ -163,7 +169,7 @@ public final class TpsBar extends JavaPlugin {
             throw new RuntimeException(e);
         }
         String str;
-        str = g.toJson(map);
+        str = g.toJson(set);
         try {
             writer.write(str);
         } catch (IOException e) {
@@ -172,7 +178,15 @@ public final class TpsBar extends JavaPlugin {
     }
 
     public boolean canLoadJson(Gson g, File f) {
-        @NotNull HashMap<UUID, BossBar> map = new HashMap<>();
+        @NotNull HashMap<UUID, BossBar> map;
+        if(!f.exists()){
+            if(!f.getParentFile().exists()) f.getParentFile().mkdir();
+            try {
+                f.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
         try {
             map = g.fromJson(new FileReader(f), new TypeToken<HashMap<UUID, BossBar>>() {
             }.getType());
@@ -180,7 +194,7 @@ public final class TpsBar extends JavaPlugin {
             e.printStackTrace();
             return false;
         }
-        return !map.isEmpty();
+        return map != null;
     }
 
 }
