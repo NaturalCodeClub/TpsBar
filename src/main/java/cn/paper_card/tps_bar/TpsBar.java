@@ -30,9 +30,11 @@ public final class TpsBar extends JavaPlugin {
     private double mspt = 0;
 
     private @NotNull HashSet<UUID> playerTpsBar = new HashSet<>();
+    private Thread autoSaveThread;
     private Gson gson = new Gson();
     private File file = new File(getDataFolder(), "config.json");
     private BossBar bossBar = getServer().createBossBar(null, BarColor.GREEN, BarStyle.SEGMENTED_20);
+    private BufferedWriter configWriter;
 
 
     @Override
@@ -46,6 +48,11 @@ public final class TpsBar extends JavaPlugin {
                 e.printStackTrace();
                 onDisable();
             }
+        }
+        try {
+            configWriter = new BufferedWriter(new FileWriter(file,false));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
 
         this.getServer().getAsyncScheduler().runAtFixedRate(this, task -> {
@@ -140,31 +147,34 @@ public final class TpsBar extends JavaPlugin {
         new Thread() {
             final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
 
+
             @Override
             public void run() {
-                executor.schedule(() -> {
-                    saveJson(gson, file, playerTpsBar);
-                    getLogger().info("Auto Save Data Succeed");
-                }, 5, TimeUnit.MINUTES);
+                autoSaveThread = Thread.currentThread();
+                    executor.schedule(() -> {
+                        saveJson(gson, file, playerTpsBar, configWriter);
+                        getLogger().info("Auto Save Data Succeed");
+                    }, 5, TimeUnit.MINUTES);
             }
-        };
+        }.start();
         getLogger().info("Plugin enabled");
     }
 
     @Override
     public void onDisable() {
         getLogger().info("Saving data to disk...");
-        saveJson(gson, file, playerTpsBar);
-        getLogger().info("Plugin disabled");
-    }
-
-    public void saveJson(Gson g, File f, HashSet<UUID> set) {
-        BufferedWriter writer;
+        saveJson(gson, file, playerTpsBar, configWriter);
+        autoSaveThread.interrupt();
         try {
-            writer = new BufferedWriter(new FileWriter(f));
+            configWriter.flush();
+            configWriter.close();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        getLogger().info("Plugin disabled");
+    }
+
+    public void saveJson(Gson g, File f, HashSet<UUID> set, @NotNull Writer writer) {
         String str;
         str = g.toJson(set);
         try {
@@ -172,13 +182,6 @@ public final class TpsBar extends JavaPlugin {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        try {
-            writer.flush();
-            writer.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
     }
 
     public boolean canLoadJson(Gson g, File f) {
