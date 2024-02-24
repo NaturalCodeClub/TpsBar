@@ -18,6 +18,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.UUID;
@@ -26,7 +27,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public final class TpsBar extends JavaPlugin {
-
+//TODO Add Config to configure the time of auto-saving
     private double mspt = 0;
 
     private @NotNull HashSet<UUID> playerTpsBar = new HashSet<>();
@@ -34,7 +35,8 @@ public final class TpsBar extends JavaPlugin {
     private Gson gson = new Gson();
     private File file = new File(getDataFolder(), "config.json");
     private BossBar bossBar = getServer().createBossBar(null, BarColor.GREEN, BarStyle.SEGMENTED_20);
-    private BufferedWriter configWriter;
+    private BufferedWriter configWriter; //TODO Remove it
+    private BufferedOutputStream configOutput;
 
 
     @Override
@@ -51,6 +53,7 @@ public final class TpsBar extends JavaPlugin {
         }
         try {
             configWriter = new BufferedWriter(new FileWriter(file,false));
+            configOutput = new BufferedOutputStream(new FileOutputStream(file));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -131,13 +134,11 @@ public final class TpsBar extends JavaPlugin {
                 if (!playerTpsBar.contains(((Player) commandSender).getUniqueId())) {
                     bossBar.addPlayer(player);
                     this.playerTpsBar.add(id);
-
                     commandSender.sendMessage(Component.text("已开启你的TpsBar"));
 
                 } else {
                     bossBar.removePlayer(Objects.requireNonNull(((Player) commandSender).getPlayer()));
                     this.playerTpsBar.remove(id);
-
                     commandSender.sendMessage(Component.text("已关闭你的TpsBar"));
                 }
             }
@@ -152,7 +153,7 @@ public final class TpsBar extends JavaPlugin {
             public void run() {
                 autoSaveThread = Thread.currentThread();
                     executor.schedule(() -> {
-                        saveJson(gson, file, playerTpsBar, configWriter);
+                        saveJson(gson, file, playerTpsBar, configOutput);
                         getLogger().info("Auto Save Data Succeed");
                     }, 5, TimeUnit.MINUTES);
             }
@@ -163,17 +164,19 @@ public final class TpsBar extends JavaPlugin {
     @Override
     public void onDisable() {
         getLogger().info("Saving data to disk...");
-        saveJson(gson, file, playerTpsBar, configWriter);
+        saveJson(gson, file, playerTpsBar, configOutput);
         autoSaveThread.interrupt();
         try {
-            configWriter.flush();
-            configWriter.close();
+            //configWriter.flush();
+            //configWriter.close(); //TODO Remove It
+            configOutput.flush();
+            configOutput.close();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
         getLogger().info("Plugin disabled");
     }
-
+//TODO Remove old method
     public void saveJson(Gson g, File f, HashSet<UUID> set, @NotNull Writer writer) {
         String str;
         str = g.toJson(set);
@@ -183,6 +186,16 @@ public final class TpsBar extends JavaPlugin {
             throw new RuntimeException(e);
         }
     }
+    public void saveJson(Gson g, File f, HashSet<UUID> set, @NotNull OutputStream output) {
+        String str;
+        str = g.toJson(set);
+        try {
+            output.write(str.getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     public boolean canLoadJson(Gson g, File f) {
         @NotNull HashSet<UUID> set;
