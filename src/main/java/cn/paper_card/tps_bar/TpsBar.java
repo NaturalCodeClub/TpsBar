@@ -35,8 +35,7 @@ public final class TpsBar extends JavaPlugin {
     private Gson gson = new Gson();
     private File file = new File(getDataFolder(), "config.json");
     private BossBar bossBar = getServer().createBossBar(null, BarColor.GREEN, BarStyle.SEGMENTED_20);
-    private BufferedWriter configWriter; //TODO Remove it
-    private BufferedOutputStream configOutput;
+    private FileOutputStream configOutput;
 
 
     @Override
@@ -52,8 +51,7 @@ public final class TpsBar extends JavaPlugin {
             }
         }
         try {
-            configWriter = new BufferedWriter(new FileWriter(file,false));
-            configOutput = new BufferedOutputStream(new FileOutputStream(file));
+            configOutput = new FileOutputStream(file);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -166,31 +164,13 @@ public final class TpsBar extends JavaPlugin {
         getLogger().info("Saving data to disk...");
         saveJson(gson, file, playerTpsBar, configOutput);
         autoSaveThread.interrupt();
-        try {
-            //configWriter.flush();
-            //configWriter.close(); //TODO Remove It
-            configOutput.flush();
-            configOutput.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
         getLogger().info("Plugin disabled");
-    }
-//TODO Remove old method
-    public void saveJson(Gson g, File f, HashSet<UUID> set, @NotNull Writer writer) {
-        String str;
-        str = g.toJson(set);
-        try {
-            writer.write(str);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
     public void saveJson(Gson g, File f, HashSet<UUID> set, @NotNull OutputStream output) {
         String str;
         str = g.toJson(set);
-        try {
-            output.write(str.getBytes(StandardCharsets.UTF_8));
+        try(BufferedOutputStream o = new BufferedOutputStream(output)){
+            o.write(str.getBytes(StandardCharsets.UTF_8));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
