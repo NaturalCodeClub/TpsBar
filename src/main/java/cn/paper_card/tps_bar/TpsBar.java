@@ -9,6 +9,7 @@ import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -27,12 +28,16 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public final class TpsBar extends JavaPlugin {
-//TODO Add Config to configure the time of auto-saving
+    //TODO Add Config to configure the time of auto-saving
     private double mspt = 0;
 
     private @NotNull HashSet<UUID> playerTpsBar = new HashSet<>();
     private Thread autoSaveThread;
     private Gson gson = new Gson();
+    public FileConfiguration langConfig;
+    public FileConfiguration config;
+    public File configFile = new File(getDataFolder(),"config.yml");
+    public File langConfigFile = new File(getDataFolder(),"lang.yml");
     private File file = new File(getDataFolder(), "config.json");
     private BossBar bossBar = getServer().createBossBar(null, BarColor.GREEN, BarStyle.SEGMENTED_20);
     private FileOutputStream configOutput;
@@ -150,10 +155,10 @@ public final class TpsBar extends JavaPlugin {
             @Override
             public void run() {
                 autoSaveThread = Thread.currentThread();
-                    executor.schedule(() -> {
-                        saveJson(gson, file, playerTpsBar, configOutput);
-                        getLogger().info("Auto Save Data Succeed");
-                    }, 5, TimeUnit.MINUTES);
+                executor.schedule(() -> {
+                    saveJson(gson, file, playerTpsBar, configOutput);
+                    getLogger().info("Auto Save Data Succeed");
+                }, 5, TimeUnit.MINUTES);
             }
         }.start();
         getLogger().info("Plugin enabled");
@@ -166,10 +171,11 @@ public final class TpsBar extends JavaPlugin {
         autoSaveThread.interrupt();
         getLogger().info("Plugin disabled");
     }
+
     public void saveJson(Gson g, File f, HashSet<UUID> set, @NotNull OutputStream output) {
         String str;
         str = g.toJson(set);
-        try(BufferedOutputStream o = new BufferedOutputStream(output)){
+        try (BufferedOutputStream o = new BufferedOutputStream(output)) {
             o.write(str.getBytes(StandardCharsets.UTF_8));
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -195,6 +201,27 @@ public final class TpsBar extends JavaPlugin {
             return false;
         }
         return set != null;
+    }
+    //TODO finish it
+    public boolean canLoadConfig(FileConfiguration config, File f) {
+//        @NotNull HashSet<UUID> set;
+//        if (!f.exists()) {
+//            if (!f.getParentFile().exists()) f.getParentFile().mkdir();
+//            try {
+//                f.createNewFile();
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+//        }
+//        try {
+//            set = g.fromJson(new FileReader(f), new TypeToken<HashSet<UUID>>() {
+//            }.getType());
+//        } catch (FileNotFoundException e) {
+//            e.printStackTrace();
+//            return false;
+//        }
+//        return set != null;
+        return true;
     }
 
 }
