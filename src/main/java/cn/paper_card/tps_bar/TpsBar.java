@@ -10,6 +10,7 @@ import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -26,6 +27,7 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 public final class TpsBar extends JavaPlugin {
     //TODO Add Config to configure the time of auto-saving
@@ -36,8 +38,9 @@ public final class TpsBar extends JavaPlugin {
     private Gson gson = new Gson();
     public FileConfiguration langConfig;
     public FileConfiguration config;
-    public File configFile = new File(getDataFolder(),"config.yml");
-    public File langConfigFile = new File(getDataFolder(),"lang.yml");
+    public File configFile = new File(getDataFolder(), "config.yml");
+    public File langConfigFile = new File(getDataFolder(), "lang.yml");
+    public static int autoSaveTime;
     private File file = new File(getDataFolder(), "config.json");
     private BossBar bossBar = getServer().createBossBar(null, BarColor.GREEN, BarStyle.SEGMENTED_20);
     private FileOutputStream configOutput;
@@ -55,6 +58,9 @@ public final class TpsBar extends JavaPlugin {
                 onDisable();
             }
         }
+        loadConfigConfig(configFile);
+        config = YamlConfiguration.loadConfiguration(configFile);
+        autoSaveTime = config.getInt("auto_save",5);
         try {
             configOutput = new FileOutputStream(file);
         } catch (IOException e) {
@@ -158,7 +164,7 @@ public final class TpsBar extends JavaPlugin {
                 executor.schedule(() -> {
                     saveJson(gson, file, playerTpsBar, configOutput);
                     getLogger().info("Auto Save Data Succeed");
-                }, 5, TimeUnit.MINUTES);
+                }, autoSaveTime, TimeUnit.MINUTES);
             }
         }.start();
         getLogger().info("Plugin enabled");
@@ -202,26 +208,29 @@ public final class TpsBar extends JavaPlugin {
         }
         return set != null;
     }
-    //TODO finish it
-    public boolean canLoadConfig(FileConfiguration config, File f) {
-//        @NotNull HashSet<UUID> set;
-//        if (!f.exists()) {
-//            if (!f.getParentFile().exists()) f.getParentFile().mkdir();
-//            try {
-//                f.createNewFile();
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
-//        }
-//        try {
-//            set = g.fromJson(new FileReader(f), new TypeToken<HashSet<UUID>>() {
-//            }.getType());
-//        } catch (FileNotFoundException e) {
-//            e.printStackTrace();
-//            return false;
-//        }
-//        return set != null;
-        return true;
-    }
 
+    //TODO finish it
+    public void loadConfigConfig(File f) {
+        if (!f.exists()) {
+            if (!f.getParentFile().exists()) {
+                f.getParentFile().mkdirs();
+            }
+            try {
+                f.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+                getLogger().log(Level.SEVERE, "Server config cannot be crated,please check you file permission");
+                onDisable();
+            }
+            FileConfiguration fc = YamlConfiguration.loadConfiguration(f);
+            fc.set("auto_save", 5);
+            try {
+                fc.save(f);
+            } catch (IOException e) {
+                e.printStackTrace();
+                getLogger().log(Level.SEVERE, "Server config cannot be crated,please check you file permission");
+                onDisable();
+            }
+        }
+    }
 }
