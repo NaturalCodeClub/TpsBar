@@ -30,7 +30,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 public final class TpsBar extends JavaPlugin {
-    //TODO Add Config to configure the time of auto-saving
     private double mspt = 0;
 
     private @NotNull HashSet<UUID> playerTpsBar = new HashSet<>();
@@ -60,7 +59,9 @@ public final class TpsBar extends JavaPlugin {
         }
         loadConfigConfig(configFile);
         config = YamlConfiguration.loadConfiguration(configFile);
-        autoSaveTime = config.getInt("auto_save",5);
+        autoSaveTime = config.getInt("auto_save", 5);
+        loadLangConfig(langConfigFile);
+        langConfig = YamlConfiguration.loadConfiguration(langConfigFile);
         try {
             configOutput = new FileOutputStream(file);
         } catch (IOException e) {
@@ -219,7 +220,7 @@ public final class TpsBar extends JavaPlugin {
                 f.createNewFile();
             } catch (IOException e) {
                 e.printStackTrace();
-                getLogger().log(Level.SEVERE, "Server config cannot be crated,please check you file permission");
+                getLogger().log(Level.SEVERE, "Server plugin TpsBar config cannot be crated,please check you file permission");
                 onDisable();
             }
             FileConfiguration fc = YamlConfiguration.loadConfiguration(f);
@@ -228,7 +229,54 @@ public final class TpsBar extends JavaPlugin {
                 fc.save(f);
             } catch (IOException e) {
                 e.printStackTrace();
-                getLogger().log(Level.SEVERE, "Server config cannot be crated,please check you file permission");
+                getLogger().log(Level.SEVERE, "Server plugin TpsBar config cannot be crated,please check you file permission");
+                onDisable();
+            }
+        }
+    }
+
+    public void loadLangConfig(File f) {
+        if (!f.exists()) {
+            if (!f.getParentFile().exists()) {
+                f.getParentFile().mkdirs();
+            }
+            try {
+                f.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+                getLogger().log(Level.SEVERE, "Server TpsBar lang config cannot be crated,please check you file permission");
+                onDisable();
+            }
+            FileConfiguration fc = YamlConfiguration.loadConfiguration(f);
+            fc.set("tpsbaron", "已开启您的Tpsbar");
+            fc.set("tpsbaroff", "已关闭您的Tpsbar");
+            fc.set("autosavemsg", "自动保存数据成功");
+            fc.set("noplayer", "该命令只能由玩家执行");
+            try {
+                fc.save(f);
+            } catch (IOException e) {
+                e.printStackTrace();
+                getLogger().log(Level.SEVERE, "Server TpsBar lang config cannot be crated,please check you file permission");
+                onDisable();
+            }
+            FileConfiguration fc1 = YamlConfiguration.loadConfiguration(f);
+            if (!(fc1.get("tpsbaron") instanceof String) || fc1.get("tpsbaron") == null) {
+                fc1.set("tpsbaron", "已开启您的Tpsbar");
+            }
+            if (!(fc1.get("tpsbaroff") instanceof String) || fc1.get("tpsbaroff") == null) {
+                fc1.set("tpsbaroff", "已关闭您的Tpsbar");
+            }
+            if (!(fc1.get("autosavemsg") instanceof String) || fc1.get("autosavemsg") == null) {
+                fc1.set("autosavemsg", "自动保存数据成功");
+            }
+            if (!(fc1.get("noplayer") instanceof String) || fc1.get("noplayer") == null) {
+                fc1.set("noplayer", "该命令只能由玩家执行");
+            }
+            try {
+                fc1.save(f);
+            } catch (IOException e) {
+                e.printStackTrace();
+                getLogger().log(Level.SEVERE, "Server TpsBar lang config cannot be crated,please check you file permission");
                 onDisable();
             }
         }
